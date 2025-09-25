@@ -1,4 +1,4 @@
-# File: modules/storage/variables.tf
+# File: modules/keyvault/variables.tf
 variable "project_name" {
   description = "Project name for resource naming"
   type        = string
