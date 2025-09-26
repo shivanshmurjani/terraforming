@@ -214,6 +214,37 @@ In the workflow (`deploy.yml`), the secrets are consumed like this:
 
 ---
 
+## Setting up secrets
+
+```
+# Get Key Vault name
+$kvName = terraform output -raw key_vault_name
+
+# Add database connection string
+az keyvault secret set --vault-name $kvName --name "db-connection-string" --value "Server=myserver;Database=prod;User Id=myuser;Password=mypass;"
+
+# Add API keys
+az keyvault secret set --vault-name $kvName --name "api-key" --value "your-secret-api-key-here"
+
+# Add storage connection string
+az keyvault secret set --vault-name $kvName --name "storage-connection" --value "DefaultEndpointsProtocol=https;AccountName=mystorageaccount;AccountKey=mykey"
+
+# Add other secrets
+az keyvault secret set --vault-name $kvName --name "jwt-secret" --value "your-jwt-signing-secret"
+
+
+
+#Disable public access after:
+# Run the security hardening script
+.\disable-keyvault-public-access.ps1
+# Now Key Vault is only accessible from private network
+
+```
+
+---
+
+---
+
 ## Deploying application
 
 ```
@@ -230,4 +261,16 @@ $rgName
 # Switch to the directory with the app and run this cmd to deploy the app
 az webapp up --name $webAppName --resource-group $rgName
 
+```
+
+---
+
+## Expected Output after deployment:
+```
+key_vault_name = "kv-my-app-dev-sx7m"
+resource_group_name = "rg-my-app-dev"
+storage_account_name = "stmyappdevbm9"
+web_app_url = "https://app-my-app-dev-rhvw5a.azurewebsites.net"
+
+The names would be randomized.
 ```
