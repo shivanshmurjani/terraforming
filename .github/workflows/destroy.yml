@@ -42,6 +42,89 @@ jobs:
         ARM_SUBSCRIPTION_ID: ${{ secrets.ARM_SUBSCRIPTION_ID }}
         ARM_TENANT_ID: ${{ secrets.ARM_TENANT_ID }}
 
+    - name: Pre-Destroy Cleanup
+      run: |
+        echo "🧹 Starting pre-destroy cleanup..."
+        
+        # Get Terraform outputs (with error handling)
+        RESOURCE_GROUP=""
+        KEYVAULT_NAME=""
+        
+        if terraform output resource_group_name > /dev/null 2>&1; then
+          RESOURCE_GROUP=$(terraform output -raw resource_group_name)
+          echo "✅ Found resource group: $RESOURCE_GROUP"
+        else
+          echo "⚠️ Could not get resource group from Terraform outputs"
+        fi
+        
+        if terraform output key_vault_name > /dev/null 2>&1; then
+          KEYVAULT_NAME=$(terraform output -raw key_vault_name)
+          echo "✅ Found Key Vault: $KEYVAULT_NAME"
+        else
+          echo "⚠️ Could not get Key Vault name from Terraform outputs"
+        fi
+        
+        # Only proceed if we have a resource group
+        if [ ! -z "$RESOURCE_GROUP" ]; then
+          echo "🔍 Looking for web apps in resource group: $RESOURCE_GROUP"
+          
+          # Get all web apps in the resource group
+          WEBAPPS=$(az webapp list --resource-group $RESOURCE_GROUP --query "[].name" -o tsv 2>/dev/null || echo "")
+          
+          if [ ! -z "$WEBAPPS" ]; then
+            echo "📱 Found web apps:"
+            echo "$WEBAPPS"
+            
+            # Remove VNet integrations for each web app
+            echo "🔌 Removing VNet integrations..."
+            while IFS= read -r webapp; do
+              if [ ! -z "$webapp" ]; then
+                echo "   Removing VNet integration for: $webapp"
+                az webapp vnet-integration remove --name "$webapp" --resource-group "$RESOURCE_GROUP" 2>/dev/null || echo "   ⚠️ Could not remove VNet integration for $webapp (may not exist)"
+              fi
+            done <<< "$WEBAPPS"
+            
+            # Delete the web apps
+            echo "🗑️ Deleting web apps..."
+            while IFS= read -r webapp; do
+              if [ ! -z "$webapp" ]; then
+                echo "   Deleting: $webapp"
+                az webapp delete --name "$webapp" --resource-group "$RESOURCE_GROUP" --yes 2>/dev/null || echo "   ⚠️ Could not delete $webapp"
+              fi
+            done <<< "$WEBAPPS"
+          else
+            echo "📱 No additional web apps found in resource group"
+          fi
+          
+          # Clean up Key Vault secrets
+          if [ ! -z "$KEYVAULT_NAME" ]; then
+            echo "🔐 Cleaning Key Vault secrets..."
+            SECRETS=$(az keyvault secret list --vault-name "$KEYVAULT_NAME" --query "[].name" -o tsv 2>/dev/null || echo "")
+            
+            if [ ! -z "$SECRETS" ]; then
+              while IFS= read -r secret; do
+                if [ ! -z "$secret" ]; then
+                  echo "   Purging secret: $secret"
+                  az keyvault secret delete --vault-name "$KEYVAULT_NAME" --name "$secret" 2>/dev/null || true
+                  az keyvault secret purge --vault-name "$KEYVAULT_NAME" --name "$secret" 2>/dev/null || true
+                fi
+              done <<< "$SECRETS"
+            fi
+          fi
+          
+          echo "⏳ Waiting for cleanup to propagate..."
+          sleep 30
+        else
+          echo "⚠️ Skipping cleanup - no resource group found"
+        fi
+        
+        echo "✅ Pre-destroy cleanup completed"
+      env:
+        ARM_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID }}
+        ARM_CLIENT_SECRET: ${{ secrets.ARM_CLIENT_SECRET }}
+        ARM_SUBSCRIPTION_ID: ${{ secrets.ARM_SUBSCRIPTION_ID }}
+        ARM_TENANT_ID: ${{ secrets.ARM_TENANT_ID }}
+
     - name: Terraform Destroy
       run: terraform destroy -auto-approve
       env:
@@ -50,5 +133,29 @@ jobs:
         ARM_SUBSCRIPTION_ID: ${{ secrets.ARM_SUBSCRIPTION_ID }}
         ARM_TENANT_ID: ${{ secrets.ARM_TENANT_ID }}
 
+    - name: Final Cleanup Check
+      run: |
+        echo "🔍 Checking if any resources remain..."
+        
+        # Try to get resource group name one more time
+        if terraform output resource_group_name > /dev/null 2>&1; then
+          RESOURCE_GROUP=$(terraform output -raw resource_group_name)
+          
+          # Check if resource group still exists and has resources
+          if az group exists --name "$RESOURCE_GROUP" 2>/dev/null; then
+            REMAINING_RESOURCES=$(az resource list --resource-group "$RESOURCE_GROUP" --query "length([*])" -o tsv 2>/dev/null || echo "0")
+            
+            if [ "$REMAINING_RESOURCES" -gt "0" ]; then
+              echo "⚠️ Warning: $REMAINING_RESOURCES resources still remain in $RESOURCE_GROUP"
+              az resource list --resource-group "$RESOURCE_GROUP" --output table 2>/dev/null || true
+            else
+              echo "✅ Resource group is empty - cleanup successful"
+            fi
+          else
+            echo "✅ Resource group no longer exists - cleanup successful"
+          fi
+        fi
+      continue-on-error: true
+
     - name: Cleanup Confirmation
-      run: echo "🗑️ Infrastructure destroyed successfully!"
+      run: echo "🗑️ Infrastructure destruction completed!"
