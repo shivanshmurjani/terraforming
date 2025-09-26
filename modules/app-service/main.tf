@@ -35,6 +35,23 @@ resource "azurerm_linux_web_app" "main" {
     }
   }
 
+#temp public access for testing.
+/*
+    ip_restriction {
+      virtual_network_subnet_id = var.subnet_id
+      action                   = "Allow"
+      priority                 = 100
+      name                     = "AllowVNetOnly"
+    }
+
+    ip_restriction {
+      ip_address = "0.0.0.0/0"
+      action     = "Deny"
+      priority   = 200
+      name       = "DenyAll"
+    }
+*/
+
   app_settings = {
     "WEBSITE_NODE_DEFAULT_VERSION" = "~18"
     "SCM_DO_BUILD_DURING_DEPLOYMENT" = "true"
