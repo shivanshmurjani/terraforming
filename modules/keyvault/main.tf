@@ -30,11 +30,11 @@ resource "azurerm_key_vault" "main" {
     object_id = data.azurerm_client_config.current.object_id
 
     key_permissions = [
-      "Get", "List", "Update", "Create", "Import", "Delete", "Recover", "Backup", "Restore"
+      "Get", "List", "Update", "Create", "Import", "Delete", "Recover", "Backup", "Restore", "Purge"
     ]
 
     secret_permissions = [
-      "Get", "List", "Set", "Delete", "Recover", "Backup", "Restore"
+      "Get", "List", "Set", "Delete", "Recover", "Backup", "Restore", "Purge"
     ]
   }
 
@@ -50,19 +50,17 @@ resource "random_string" "kv_suffix" {
   upper   = false
 }
 
-# Sample secret (can be created after Key Vault is accessible)
-resource "azurerm_key_vault_secret" "app_secret" {
-  name         = "app-connection-string"
-  value        = "Server=private;Database=myapp;Integrated Security=true;"
-  key_vault_id = azurerm_key_vault.main.id
-
-  depends_on = [azurerm_key_vault.main]
-
-  tags = {
-    Environment = var.environment
-    Project     = var.project_name
-  }
-}
+# Sample secret (commented out due to private access)
+# resource "azurerm_key_vault_secret" "app_secret" {
+#   name         = "app-connection-string"
+#   value        = "Server=private;Database=myapp;Integrated Security=true;"
+#   key_vault_id = azurerm_key_vault.main.id
+#   depends_on = [azurerm_key_vault.main]
+#   tags = {
+#     Environment = var.environment
+#     Project     = var.project_name
+#   }
+# }
 
 # Private endpoint for Key Vault
 resource "azurerm_private_endpoint" "keyvault" {
