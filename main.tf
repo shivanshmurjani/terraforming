@@ -32,7 +32,7 @@ variable "environment" {
 variable "project_name" {
   description = "Project name for resource naming"
   type        = string
-  default     = "myapp"
+  default     = "my-app"
 }
 
 # Resource Group Module
