@@ -1,10 +1,3 @@
-# GitHub Actions Secrets for Terraform on Azure
-
-This project uses **Terraform** with **GitHub Actions** to deploy resources into Azure.  
-Authentication is handled using an **Azure Service Principal (SP)**, with credentials stored as GitHub Secrets.
-
----
-
 ## Required Secretss
 
 Add the following secrets in your repository:
@@ -15,7 +8,7 @@ Add the following secrets in your repository:
 | `ARM_CLIENT_SECRET`   | The password/secret value of the Service Principal. |
 | `ARM_SUBSCRIPTION_ID` | The Azure Subscription ID where resources will be deployed. |
 | `ARM_TENANT_ID`       | The Azure Tenant (directory) ID of your organization. |
-
+| `AZURE_CREDENTIALS`   | Entire json
 ---
 
 ## How to Generate These Secrets
@@ -26,23 +19,20 @@ Add the following secrets in your repository:
    az login
    ```
 
-2. Create a Service Principal with **Contributor** access to your subscription:
+2. Create a Service Principal with **Contributor** access:
 
    ```powershell
-   az ad sp create-for-rbac `
-     --name "github-actions-terraform" `
-     --role Contributor `
-     --scopes "/subscriptions/<YOUR_SUBSCRIPTION_ID>"
+   az ad sp create-for-rbac --name "github-actions-terraform" --role Contributor --scopes "/subscriptions/<YOUR_SUBSCRIPTION_ID>"
    ```
 
-3. The command outputs JSON similar to:
+3. Take the output JSON and create the `AZURE_CREDENTIALS` JSON in this format:
 
    ```json
    {
-     "appId": "xxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
-     "displayName": "github-actions-terraform",
-     "password": "xxxxxxxxxxxxxxxxxxxx",
-     "tenant": "xxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+     "clientId": "<appId from SP>",
+     "clientSecret": "<password from SP>",
+     "tenantId": "<tenant from SP>",
+     "subscriptionId": "<your Azure subscription ID>"
    }
    ```
 
@@ -51,6 +41,7 @@ Add the following secrets in your repository:
    - `ARM_CLIENT_SECRET` → `password`
    - `ARM_TENANT_ID` → `tenant`
    - `ARM_SUBSCRIPTION_ID` → your subscription ID (get with `az account show --query id -o tsv`)
+   - `AZURE_CREDENTIALS` → `Go to 3`
 
 ---
 
@@ -78,5 +69,3 @@ In the workflow (`deploy.yml`), the secrets are consumed like this:
 
 ---
 
-⚠️ **Security Note:**  
-Never commit these credentials into source control. Always store them as GitHub Secrets.
