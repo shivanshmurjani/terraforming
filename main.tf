@@ -5,6 +5,10 @@ terraform {
       source  = "hashicorp/azurerm"
       version = "~>3.0"
     }
+    random = {
+      source  = "hashicorp/random"
+      version = "~>3.0"
+    }
   }
 }
 
@@ -50,11 +54,24 @@ module "networking" {
 
 # Storage Module
 module "storage" {
-  source              = "./modules/storage"
-  project_name        = var.project_name
-  environment         = var.environment
-  location            = var.location
-  resource_group_name = module.resource_group.name
+  source                      = "./modules/storage"
+  project_name                = var.project_name
+  environment                 = var.environment
+  location                    = var.location
+  resource_group_name         = module.resource_group.name
+  private_endpoints_subnet_id = module.networking.private_endpoints_subnet_id
+  vnet_id                     = module.networking.vnet_id
+}
+
+# Key Vault Module
+module "keyvault" {
+  source                      = "./modules/keyvault"
+  project_name                = var.project_name
+  environment                 = var.environment
+  location                    = var.location
+  resource_group_name         = module.resource_group.name
+  private_endpoints_subnet_id = module.networking.private_endpoints_subnet_id
+  vnet_id                     = module.networking.vnet_id
 }
 
 # App Service Module
@@ -81,4 +98,9 @@ output "web_app_url" {
 output "storage_account_name" {
   description = "Name of the storage account"
   value       = module.storage.storage_account_name
+}
+
+output "key_vault_name" {
+  description = "Name of the Key Vault"
+  value       = module.keyvault.key_vault_name
 }
