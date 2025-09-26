@@ -5,7 +5,7 @@ Authentication is handled using an **Azure Service Principal (SP)**, with creden
 
 ---
 
-## Required Secrets
+## Required Secretss
 
 Add the following secrets in your repository:
 
